@@ -39,3 +39,92 @@ for interface in "${itf_name[@]}"
     done
 
 #Trying to get TX bytes
+
+#########################################################
+
+printf "%-10s %10s %10s %10s %10s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
+#Para cada interface, salve os bytes iniciais de pacotes TX e RX de cada interface...
+#Desde a execucao do programa.
+for interface in "${itf_name[@]}"
+    do
+        #TX em bytes
+        IFS=$'\n' read -r -d '' -a TxBytes_inicial < <( ifconfig -a $interface | grep "TX packets " | awk '{print $5}' && printf '\0' )
+        #RX em bytes
+        IFS=$'\n' read -r -d '' -a RxBytes_inicial < <( ifconfig -a $interface | grep "RX packets " | awk '{print $5}' && printf '\0' )
+
+        printf "%-10s %10d %10d %10d %10d \n" $interface $TxBytes_inicial $RxBytes_inicial $TRate $RRate
+done
+
+#sleeping for $tempo/10
+echo sleeping for $tempo seconds...
+sleep $tempo
+echo just wake up!
+
+echo !!! DADOS NOVOS !!!
+printf "%-10s %10s %10s %10s %10s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
+#Para cada interface, imprima os bytes de pacotes TX de cada interface...
+for interface in "${itf_name[@]}"
+    do
+        #TX em bytes
+        IFS=$'\n' read -r -d '' -a TxBytes_final < <( ifconfig -a $interface | grep "TX packets " | awk '{print $5}' && printf '\0' )
+        #RX em bytes
+        IFS=$'\n' read -r -d '' -a RxBytes_final < <( ifconfig -a $interface | grep "RX packets " | awk '{print $5}' && printf '\0' )
+
+        TRate=$(( ($TxBytes_final-$TxBytes_inicial)/$tempo ))
+
+        printf "%-10s %10d %10d %10d %10d \n" $interface $TxBytes_final $RxBytes_final $TRate $RRate
+done
+        echo TRate:  $TRate
+
+
+######################################################################################
+#TRate Test
+for tx_f in "${TxBytes_final[@]}"
+    do
+        echo tx_final: "$tx_f"
+done
+for rx_f in "${RxBytes_final[@]}"
+do
+        echo rx_final: "$rx_f"
+done
+
+#TRate Stuff
+TRate=();
+
+for ((i=0,j=$itf_length;i<j;i++))
+do
+    TRate_value=$(( (${TxBytes_final[i]} - ${TxBytes_inicial[i]}) / $tempo ))
+    if [[ $TRate_value -eq 0 ]]; then
+        TRate_value=$(( ${TxBytes_final[i]} / $tempo ))
+    fi
+    TRate+=("$TRate_value");
+    echo Teste --- tx_inicial: "${TxBytes_inicial[i]}" $'\t' tx_final: "${TxBytes_final[i]}" $'\t' t_rate: "$TRate_value"
+done
+
+echo teste TRate array
+for i in "${TRate[@]}"
+do
+    echo testttt "$i"
+done
+echo "${TRate[@]}"
+
+### ou  ####
+#TRate Stuff
+TRate=();
+for ((i=0,j=$itf_length;i<j;i++))
+do
+    dif=$(( ${TxBytes_final[i]} - ${TxBytes_inicial[i]} ))
+    TRate_value="$( echo "scale=1; $dif / $tempo" | bc )"
+    if [[ $dif -eq 0 ]]; then
+        TRate_value="$( echo "scale=2; ${TxBytes_final[i]} / $tempo" | bc )"
+    fi
+    TRate+=("$TRate_value");
+    echo Teste --- tx_inicial: "${TxBytes_inicial[i]}" $'\t' tx_final: "${TxBytes_final[i]}" $'\t' t_rate: "$TRate_value"
+done
+
+echo teste TRate array
+for i in "${TRate[@]}"
+do
+    echo testttt "$i"
+done
+echo "${TRate[@]}"
