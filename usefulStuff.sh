@@ -128,3 +128,49 @@ do
     echo testttt "$i"
 done
 echo "${TRate[@]}"
+
+###b##########################
+keyword=${argumentos[i+1]};
+                echo "$keyword";
+                for itf in "${itf_name[@]}"
+                do
+                    if ! [[ $keyword =~ $itf ]]; then # se o nome nao corresponder a uma interface, delete ela do array...
+                        echo Deleting: "$itf";
+                        itf_name=("${itf_name[@]/$itf}");
+                    fi
+                done
+
+
+
+#####################################################################
+# Esta era a maneira mais eficiente (termos de tempo de computacao e complexidade, porem nao funciona como desejado)
+keyword=${argumentos[i+1]};
+                echo "$keyword";
+                for itf in "${itf_name[@]}"
+                do
+                    if ! [[ $itf =~ "$keyword" || "$keyword" =~ $itf ]]; then # se o nome nao corresponder a uma interface, delete ela do array...
+                        echo Deleting: "$itf";
+                        itf_to_delete=("$itf"); #Criando um array com os itens que deseja deletar
+                    fi
+                done
+                declare -A delk
+                for itf in "${itf_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+                for k in "${!itf_name[@]}" ; do
+                        [ "${delk[${itf_name[$k]}]-}" ] && unset 'itf_name[k]'
+                done
+                itf_name=("${itf_name[@]}");
+                itf_length=${#itf_name[@]}; # temos que declarar novamente a variavel com o tamanho do array das interfaces, pois este foi alterado (used to do a big messy bug... now fixed!)
+
+################# solucao brute force, ineficiente da mesma forma ###########3
+# for target in "${itf_to_delete[@]}"; do
+                #     for i in "${!itf_name[@]}"; do
+                #         if [[ ${itf_name[i]} = $target ]]; then
+                #         unset 'itf_name[i]'
+                #         fi
+                #     done
+                # done
+                # for i in "${!itf_name[@]}"; do
+                # new_itf_name+=( "${itf_name[i]}" )
+                # done
+                # itf_name=("${new_itf_name[@]}")
+                # unset new_itf_name

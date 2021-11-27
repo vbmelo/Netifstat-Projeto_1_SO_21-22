@@ -60,8 +60,8 @@ echo sleeping for $tempo seconds...
 # sleep $tempo      #If you want to testar, sujiro que comenete esta linha :)
 echo just wake up!
 
-IFS=$'\n' read -r -d '' -a TxBytes_final < <( ifconfig -a $interface | grep "TX packets " | awk '{print $5}' && printf '\0' )
-IFS=$'\n' read -r -d '' -a RxBytes_final < <( ifconfig -a $interface | grep "RX packets " | awk '{print $5}' && printf '\0' )
+IFS=$'\n' read -r -d '' -a TxBytes_final < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' )
+IFS=$'\n' read -r -d '' -a RxBytes_final < <( ifconfig -a | grep "RX packets " | awk '{print $5}' && printf '\0' )
 
 
 ###     Handling the RATES!     ###
@@ -107,6 +107,7 @@ done
 
 #   regex mask to find whats between "" after the -c argument
 # mask='["]\w+["]'; -> not necessario, bash ja retira as "" do argumento e passa ele como string...
+itf_to_delete=();
 for ((i=0;i<$#;i++))
 do
     if ! [[ ${argumentos[i]} =~ $re ]] ; then #se algum argumento nao for um numero continue:
@@ -116,10 +117,23 @@ do
                 echo "$keyword";
                 for itf in "${itf_name[@]}"
                 do
-                    if ! [[ $itf =~ $keyword ]]; then # se o nome corresponder a uma interface, delete ela...
-                        echo "$itf";
+                    if ! [[ $itf =~ $keyword ]]; then # se o nome nao corresponder a uma interface, delete ela do array...
+                        echo Deleting: "$itf";
+                        itf_to_delete+=("$itf"); #Criando um array com os itens que deseja deletar
                     fi
                 done
+
+                declare -A delk
+                for itf in "${itf_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+                for k in "${!itf_name[@]}" ; do
+                        [ "${delk[${itf_name[$k]}]-}" ] && unset 'itf_name[k]'
+                done
+                itf_name=("${itf_name[@]}");
+
+                for target in "${itf_to_delete[@]}"; do
+                    echo era pra deletar: "$target"
+                done
+                itf_length=${#itf_name[@]}; # temos que declarar novamente a variavel com o tamanho do array das interfaces, pois este foi alterado (used to do a big messy bug... now fixed!)
 
             ;;
 
@@ -179,3 +193,20 @@ do
         esac
     fi
 done
+
+###     testing if the unmatched items were deleted from the array      ###
+for itf in "${itf_name[@]}"
+do
+    echo remains: "$itf";
+done
+
+###     printing the desired interfaces, after deleting the undesired ones      ###
+printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
+
+for ((i=0;i<$itf_length;i++))
+do
+    LC_NUMERIC="en_US.UTF-8" printf "%-15s %15d %15d %15.2f %15.2f \n" ${itf_name[i]} ${TxBytes_final[i]} ${RxBytes_final[i]} ${TRate[i]} ${RRate[i]}
+done
+
+### ERRO NO PRINT, o indices do itf_name array mudou, pore, os indices dos rates nao mudaram...
+# testar com: ./netifstat.sh 10 -c "w"
