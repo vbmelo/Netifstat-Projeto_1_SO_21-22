@@ -139,15 +139,15 @@ do
 
                 for ((i=0;i<$itf_length;i++)) 
                     do
-                        if [[ ${itf_index[i]} =~ ${!TxBytes_inicial[i]} && ${itf_index[i]} =~ ${!TxBytes_final[i]} && ${itf_index[i]} =~ ${!RxBytes_inicial[i]} && ${itf_index[i]} =~ ${!RxBytes_final[i]} ]] ; then
+                        if [[ ${itf_index[i]} =~ ${!TxBytes_inicial[i]} || ${itf_index[i]} =~ ${!TxBytes_final[i]} || ${itf_index[i]} =~ ${!RxBytes_inicial[i]} || ${itf_index[i]} =~ ${!RxBytes_final[i]} ]] ; then
                             echo to be deleted - TX i: ${TxBytes_inicial[i]};
                             tx_i_to_delete+=("${TxBytes_inicial[i]}");  
                             echo to be deleted - TX f: ${TxBytes_final[i]};
-                            tx_f_to_delete=("${TxBytes_final[i]}");
+                            tx_f_to_delete+=("${TxBytes_final[i]}");
                             echo to be deleted - RX i: ${RxBytes_inicial[i]};
                             rx_i_to_delete+=("${RxBytes_inicial[i]}"); 
                             echo to be deleted - RX f: ${RxBytes_final[i]};
-                            rx_f_to_delete=("${RxBytes_final[i]}");
+                            rx_f_to_delete+=("${RxBytes_final[i]}");
                         fi
                 done
 
@@ -157,6 +157,27 @@ do
                         [ "${delk[${TxBytes_inicial[$k]}]-}" ] && unset 'TxBytes_inicial[k]'
                 done
                 TxBytes_inicial=("${TxBytes_inicial[@]}");
+
+                declare -A delk
+                for itf in "${tx_f_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+                for k in "${!TxBytes_final[@]}" ; do
+                        [ "${delk[${TxBytes_final[$k]}]-}" ] && unset 'TxBytes_final[k]'
+                done
+                TxBytes_final=("${TxBytes_final[@]}");
+
+                declare -A delk
+                for itf in "${rx_i_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+                for k in "${!RxBytes_inicial[@]}" ; do
+                        [ "${delk[${RxBytes_inicial[$k]}]-}" ] && unset 'RxBytes_inicial[k]'
+                done
+                RxBytes_inicial=("${RxBytes_inicial[@]}");
+
+                declare -A delk
+                for itf in "${rx_f_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+                for k in "${!RxBytes_final[@]}" ; do
+                        [ "${delk[${RxBytes_final[$k]}]-}" ] && unset 'RxBytes_final[k]'
+                done
+                RxBytes_final=("${RxBytes_final[@]}");
 
 
                 itf_length=${#itf_name[@]}; # temos que declarar novamente a variavel com o tamanho do array das interfaces, pois este foi alterado (used to do a big messy bug... now fixed!)
@@ -232,7 +253,7 @@ do
 done
 for dlt in "${tx_i_to_delete[@]}" # Testing whether the corresponding index of the deleted interface name has been appended to its array
 do
-    echo asdadasd index: "$dlt";
+    echo tx i to delete: "$dlt";
 done
 
 printStats() {
