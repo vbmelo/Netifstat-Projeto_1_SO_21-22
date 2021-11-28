@@ -174,3 +174,20 @@ keyword=${argumentos[i+1]};
                 # done
                 # itf_name=("${new_itf_name[@]}")
                 # unset new_itf_name
+
+
+
+                ###     testing if the unmatched items were deleted from the array      ###
+for itf in "${itf_name[@]}"
+do
+    echo remains: "$itf";
+done
+
+for dlt in "${itf_index[@]}" # Testing whether the corresponding index of the deleted interface name has been appended to its array
+do
+    echo deleted index: "$dlt";
+done
+for dlt in "${tx_i_to_delete[@]}" # Testing whether the corresponding index of the deleted interface name has been appended to its array
+do
+    echo tx i to delete: "$dlt";
+done

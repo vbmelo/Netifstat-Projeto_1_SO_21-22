@@ -54,12 +54,6 @@ itf_length=${#itf_name[@]} #Quantidade de Interfaces
 IFS=$'\n' read -r -d '' -a TxBytes_inicial < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' )
 IFS=$'\n' read -r -d '' -a RxBytes_inicial < <( ifconfig -a | grep "RX packets " | awk '{print $5}' && printf '\0' )
 
-
-###     Handling the Execution Time     ###
-echo sleeping for $tempo seconds...
-# sleep $tempo      #If you want to testar, sujiro que comenete esta linha :)
-echo just wake up!
-
 IFS=$'\n' read -r -d '' -a TxBytes_final < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' )
 IFS=$'\n' read -r -d '' -a RxBytes_final < <( ifconfig -a | grep "RX packets " | awk '{print $5}' && printf '\0' )
 
@@ -95,23 +89,26 @@ done
 ###     Handling the Outputs    ###
 ##  Basic Case Output
 
-printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
+printStats() {
+    printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
 
-for ((i=0;i<$itf_length;i++))
-do
-    LC_NUMERIC="en_US.UTF-8" printf "%-15s %15d %15d %15.2f %15.2f \n" ${itf_name[i]} ${TxBytes_final[i]} ${RxBytes_final[i]} ${TRate[i]} ${RRate[i]}
-done
+    for ((i=0;i<$itf_length;i++))
+    do
+        LC_NUMERIC="en_US.UTF-8" printf "%-15s %15d %15d %15.2f %15.2f \n" ${itf_name[i]} ${TxBytes_final[i]} ${RxBytes_final[i]} ${TRate[i]} ${RRate[i]}
+    done
+}
+printStats
 
 ###     Other outputs   ###
 ##  Based in the given arguments
 
-#   regex mask to find whats between "" after the -c argument
-# mask='["]\w+["]'; -> not necessario, bash ja retira as "" do argumento e passa ele como string...
 itf_to_delete=(); # array com as interfaces que nao correspondem as que queremos peloa arg -c "itf que queremos"
 tx_i_to_delete=();
 tx_f_to_delete=();
 rx_i_to_delete=();
 rx_f_to_delete=();
+trate_to_delete=();
+rrate_to_delete=();
 itf_index=();   # array com os indices das interfaces apagadas
 for ((i=0;i<$#;i++))
 do
@@ -123,7 +120,6 @@ do
                 for ((i=0;i<${#itf_name[@]};i++)) 
                     do
                         if ! [[ ${itf_name[i]} =~ $keyword ]]; then # se o nome nao corresponder a uma interface, adicione ela ao array com as interfaces a serem deletadas
-                            echo Deleting: "${itf_name[i]}";
                             itf_to_delete+=("${itf_name[i]}"); #Criando um array com os itens que deseja deletar
                             itf_index+=("$i"); #Salvando os indices de cada interface a ser deletada, para posteriormente deletar dos arrays tx, rx e rates
                         fi
@@ -139,15 +135,13 @@ do
 
                 for ((i=0;i<$itf_length;i++)) 
                     do
-                        if [[ ${itf_index[i]} =~ ${!TxBytes_inicial[i]} || ${itf_index[i]} =~ ${!TxBytes_final[i]} || ${itf_index[i]} =~ ${!RxBytes_inicial[i]} || ${itf_index[i]} =~ ${!RxBytes_final[i]} ]] ; then
-                            echo to be deleted - TX i: ${TxBytes_inicial[i]};
+                        if ! [[ ${itf_index[i]} = ${!TxBytes_inicial[i]} && ${itf_index[i]} = ${!TxBytes_final[i]} && ${itf_index[i]} = ${!RxBytes_inicial[i]} && ${itf_index[i]} = ${!RxBytes_final[i]} ]] ; then
                             tx_i_to_delete+=("${TxBytes_inicial[i]}");  
-                            echo to be deleted - TX f: ${TxBytes_final[i]};
                             tx_f_to_delete+=("${TxBytes_final[i]}");
-                            echo to be deleted - RX i: ${RxBytes_inicial[i]};
                             rx_i_to_delete+=("${RxBytes_inicial[i]}"); 
-                            echo to be deleted - RX f: ${RxBytes_final[i]};
                             rx_f_to_delete+=("${RxBytes_final[i]}");
+                            trate_to_delete+=("${TRate[i]}"); 
+                            rrate_to_delete+=("${RRate[i]}");
                         fi
                 done
 
@@ -179,6 +173,20 @@ do
                 done
                 RxBytes_final=("${RxBytes_final[@]}");
 
+                declare -A delk
+                for itf in "${trate_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+                for k in "${!TRate[@]}" ; do
+                        [ "${delk[${TRate[$k]}]-}" ] && unset 'TRate[k]'
+                done
+                TRate=("${TRate[@]}");
+
+                declare -A delk
+                for itf in "${rrate_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+                for k in "${!RRate[@]}" ; do
+                        [ "${delk[${RRate[$k]}]-}" ] && unset 'RRate[k]'
+                done
+                RRate=("${RRate[@]}");
+
 
                 itf_length=${#itf_name[@]}; # temos que declarar novamente a variavel com o tamanho do array das interfaces, pois este foi alterado (used to do a big messy bug... now fixed!)
 
@@ -186,9 +194,8 @@ do
 
 
             -b)
-            
-            ;;
 
+            ;;                        
 
             -k)
             
@@ -241,29 +248,11 @@ do
     fi
 done
 
-###     testing if the unmatched items were deleted from the array      ###
-for itf in "${itf_name[@]}"
-do
-    echo remains: "$itf";
-done
 
-for dlt in "${itf_index[@]}" # Testing whether the corresponding index of the deleted interface name has been appended to its array
-do
-    echo deleted index: "$dlt";
-done
-for dlt in "${tx_i_to_delete[@]}" # Testing whether the corresponding index of the deleted interface name has been appended to its array
-do
-    echo tx i to delete: "$dlt";
-done
-
-printStats() {
-    printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
-
-    for ((i=0;i<$itf_length;i++))
-    do
-        LC_NUMERIC="en_US.UTF-8" printf "%-15s %15d %15d %15.2f %15.2f \n" ${itf_name[i]} ${TxBytes_final[i]} ${RxBytes_final[i]} ${TRate[i]} ${RRate[i]}
-    done
-}
+###     Handling the Execution Time     ###
+echo sleeping for $tempo seconds...
+# sleep $tempo      #If you want to testar, sujiro que comenete esta linha :)
+echo just wake up!
 
 printStats
 
