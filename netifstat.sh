@@ -107,32 +107,58 @@ done
 
 #   regex mask to find whats between "" after the -c argument
 # mask='["]\w+["]'; -> not necessario, bash ja retira as "" do argumento e passa ele como string...
-itf_to_delete=();
+itf_to_delete=(); # array com as interfaces que nao correspondem as que queremos peloa arg -c "itf que queremos"
+tx_i_to_delete=();
+tx_f_to_delete=();
+rx_i_to_delete=();
+rx_f_to_delete=();
+itf_index=();   # array com os indices das interfaces apagadas
 for ((i=0;i<$#;i++))
 do
     if ! [[ ${argumentos[i]} =~ $re ]] ; then #se algum argumento nao for um numero continue:
         case ${argumentos[i]} in
             -c)
-                keyword=${argumentos[i+1]};
-                echo "$keyword";
-                for itf in "${itf_name[@]}"
-                do
-                    if ! [[ $itf =~ $keyword ]]; then # se o nome nao corresponder a uma interface, delete ela do array...
-                        echo Deleting: "$itf";
-                        itf_to_delete+=("$itf"); #Criando um array com os itens que deseja deletar
-                    fi
+                ###     Tratando de excluir as interfaces que nao correspondem a keyword passada apos -c    ###
+                keyword=${argumentos[i+1]};#keyword passada entre "" apos o -c
+                for ((i=0;i<${#itf_name[@]};i++)) 
+                    do
+                        if ! [[ ${itf_name[i]} =~ $keyword ]]; then # se o nome nao corresponder a uma interface, adicione ela ao array com as interfaces a serem deletadas
+                            echo Deleting: "${itf_name[i]}";
+                            itf_to_delete+=("${itf_name[i]}"); #Criando um array com os itens que deseja deletar
+                            itf_index+=("$i"); #Salvando os indices de cada interface a ser deletada, para posteriormente deletar dos arrays tx, rx e rates
+                        fi
                 done
-
                 declare -A delk
                 for itf in "${itf_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
                 for k in "${!itf_name[@]}" ; do
                         [ "${delk[${itf_name[$k]}]-}" ] && unset 'itf_name[k]'
                 done
                 itf_name=("${itf_name[@]}");
+               
+                ###     Tratando de apagar os indices correspondentes as interfaces deletadas dos arrays de TX, RX e Rates      ###
 
-                for target in "${itf_to_delete[@]}"; do
-                    echo era pra deletar: "$target"
+                for ((i=0;i<$itf_length;i++)) 
+                    do
+                        if [[ ${itf_index[i]} =~ ${!TxBytes_inicial[i]} && ${itf_index[i]} =~ ${!TxBytes_final[i]} && ${itf_index[i]} =~ ${!RxBytes_inicial[i]} && ${itf_index[i]} =~ ${!RxBytes_final[i]} ]] ; then
+                            echo to be deleted - TX i: ${TxBytes_inicial[i]};
+                            tx_i_to_delete+=("${TxBytes_inicial[i]}");  
+                            echo to be deleted - TX f: ${TxBytes_final[i]};
+                            tx_f_to_delete=("${TxBytes_final[i]}");
+                            echo to be deleted - RX i: ${RxBytes_inicial[i]};
+                            rx_i_to_delete+=("${RxBytes_inicial[i]}"); 
+                            echo to be deleted - RX f: ${RxBytes_final[i]};
+                            rx_f_to_delete=("${RxBytes_final[i]}");
+                        fi
                 done
+
+                declare -A delk
+                for itf in "${tx_i_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+                for k in "${!TxBytes_inicial[@]}" ; do
+                        [ "${delk[${TxBytes_inicial[$k]}]-}" ] && unset 'TxBytes_inicial[k]'
+                done
+                TxBytes_inicial=("${TxBytes_inicial[@]}");
+
+
                 itf_length=${#itf_name[@]}; # temos que declarar novamente a variavel com o tamanho do array das interfaces, pois este foi alterado (used to do a big messy bug... now fixed!)
 
             ;;
@@ -200,13 +226,25 @@ do
     echo remains: "$itf";
 done
 
-###     printing the desired interfaces, after deleting the undesired ones      ###
-printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
-
-for ((i=0;i<$itf_length;i++))
+for dlt in "${itf_index[@]}" # Testing whether the corresponding index of the deleted interface name has been appended to its array
 do
-    LC_NUMERIC="en_US.UTF-8" printf "%-15s %15d %15d %15.2f %15.2f \n" ${itf_name[i]} ${TxBytes_final[i]} ${RxBytes_final[i]} ${TRate[i]} ${RRate[i]}
+    echo deleted index: "$dlt";
 done
+for dlt in "${tx_i_to_delete[@]}" # Testing whether the corresponding index of the deleted interface name has been appended to its array
+do
+    echo asdadasd index: "$dlt";
+done
+
+printStats() {
+    printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
+
+    for ((i=0;i<$itf_length;i++))
+    do
+        LC_NUMERIC="en_US.UTF-8" printf "%-15s %15d %15d %15.2f %15.2f \n" ${itf_name[i]} ${TxBytes_final[i]} ${RxBytes_final[i]} ${TRate[i]} ${RRate[i]}
+    done
+}
+
+printStats
 
 ### ERRO NO PRINT, o indices do itf_name array mudou, pore, os indices dos rates nao mudaram...
 # testar com: ./netifstat.sh 10 -c "w"
