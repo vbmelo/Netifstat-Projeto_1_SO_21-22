@@ -162,18 +162,18 @@ keyword=${argumentos[i+1]};
                 itf_length=${#itf_name[@]}; # temos que declarar novamente a variavel com o tamanho do array das interfaces, pois este foi alterado (used to do a big messy bug... now fixed!)
 
 ################# solucao brute force, ineficiente da mesma forma ###########3
-# for target in "${itf_to_delete[@]}"; do
-                #     for i in "${!itf_name[@]}"; do
-                #         if [[ ${itf_name[i]} = $target ]]; then
-                #         unset 'itf_name[i]'
-                #         fi
-                #     done
-                # done
-                # for i in "${!itf_name[@]}"; do
-                # new_itf_name+=( "${itf_name[i]}" )
-                # done
-                # itf_name=("${new_itf_name[@]}")
-                # unset new_itf_name
+for target in "${itf_to_delete[@]}"; do
+                    for i in "${!itf_name[@]}"; do
+                        if [[ ${itf_name[i]} = $target ]]; then
+                        unset 'itf_name[i]'
+                        fi
+                    done
+                done
+                for i in "${!itf_name[@]}"; do
+                new_itf_name+=( "${itf_name[i]}" )
+                done
+                itf_name=("${new_itf_name[@]}")
+                unset new_itf_name
 
 
 
