@@ -257,6 +257,10 @@ do
         continue;
     fi
 
+    if [[ ${argumentos[i]} == "-b" ]] ; then
+        continue;
+    fi  
+
     if [[ ${argumentos[i]} == "-k" ]]; then
         byteConversor 2
         continue;
