@@ -127,12 +127,17 @@ byteConversor() {   #Funcao para calcular os valores em bytes, kilobytes e megab
 }
 
 reverseArray() {
-    # first argument is the array to reverse
-    # second is the output array
-    array=("$1");
-    for (( i=${#array[@]}-1; i>=0; i-- ))
-    do 
-        rev[${#rev[@]}]=${array[i]}
+    min=0
+    max=$(( ${#itf_name[@]} -1 ))
+
+    while [[ min -lt max ]]
+    do
+        x="${itf_name[$min]}"
+        itf_name[$min]="${itf_name[$max]}"
+        itf_name[$max]="$x"
+
+        # Move closer
+        (( min++, max-- ))
     done
 }
 
@@ -283,21 +288,8 @@ do
     # fi
 
     if [[ ${argumentos[i]} == "-v" ]]; then
-        min=0
-        max=$(( ${#itf_name[@]} -1 ))
-
-        while [[ min -lt max ]]
-        do
-            # Swap current first and last elements
-            x="${itf_name[$min]}"
-            itf_name[$min]="${itf_name[$max]}"
-            itf_name[$max]="$x"
-
-            # Move closer
-            (( min++, max-- ))
-        done
-
-        echo "${itf_name[@]}"
+        reverseArray
+        continue;
     fi
 
     if [[ ${argumentos[i]} == "-l" ]]; then
