@@ -74,22 +74,26 @@ gatherData() {  #funcao que armazena os valores do TX, RX, RRATE e TRATE das res
 
     ###     Handling the RATES!     ###
     TRate=()
+    TX=()
+
     for ((i=0,j=$itf_length;i<j;i++))
     do
-        dif=$(( ${TxBytes_final[i]} - ${TxBytes_inicial[i]} ))
-        TRate_value="$( echo "scale=1; $dif / $tempo" | bc )"
-        if [[ $dif -eq 0 ]]; then
+        TX=$(( ${TxBytes_final[i]} - ${TxBytes_inicial[i]} ))
+        TRate_value="$( echo "scale=1; $TX / $tempo" | bc )"
+        if [[ $TX -eq 0 ]]; then
             TRate_value="$( echo "scale=2; ${TxBytes_final[i]} / $tempo" | bc )"
         fi
         TRate+=("$TRate_value");
     done
 
     RRate=()
+    RX=()
+
     for ((i=0,j=$itf_length;i<j;i++))
     do
-        dif=$(( ${RxBytes_final[i]} - ${RxBytes_inicial[i]} ))
-        RRate_value="$( echo "scale=1; $dif / $tempo" | bc )"
-        if [[ $dif -eq 0 ]]; then
+        RX=$(( ${RxBytes_final[i]} - ${RxBytes_inicial[i]} ))
+        RRate_value="$( echo "scale=1; $RX / $tempo" | bc )"
+        if [[ $RX -eq 0 ]]; then
             RRate_value="$( echo "scale=2; ${RxBytes_final[i]} / $tempo" | bc )"
         fi
         RRate+=("$RRate_value");
@@ -102,6 +106,8 @@ byteConversor() {   #Funcao para calcular os valores em bytes, kilobytes e megab
         for ((i=0;i<${#TRate[@]};i++))
         do
             if ! [[ ${TRate[i]} = 0 ]] ; then
+            TX[i]="$( echo "(${TX[i]} + 1023) / 1024" )"
+            RX[i]="$( echo "scale=2; (${RX[i]} + 1023) / 1024")"
             TRate[i]="$( echo "scale=2; (${TRate[i]} + 1023) / 1024" | bc )"
             RRate[i]="$( echo "scale=2; (${RRate[i]} + 1023) / 1024" | bc )"
             fi
@@ -111,6 +117,8 @@ byteConversor() {   #Funcao para calcular os valores em bytes, kilobytes e megab
         for ((i=0;i<${#TRate[@]};i++))
         do
             if ! [[ ${TRate[i]} = 0 ]] ; then
+            TX[i]="$( echo "(${TX[i]} + 1048575) / 1048576" )"
+            RX[i]="$( echo "(${RX[i]} + 1048575) / 1048576" )"
             TRate[i]="$( echo "scale=2; (${TRate[i]} + 1048575) / 1048576" | bc )"
             RRate[i]="$( echo "scale=2; (${RRate[i]} + 1048575) / 1048576" | bc )"
             fi
