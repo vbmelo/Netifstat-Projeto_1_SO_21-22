@@ -141,7 +141,34 @@ reverseArray() {
     done
 }
 
+loop() {
+    loop=1; # variavel que controla se o programa sera executado em modo loop 1 - true | 0 - false
+    tempoLoop=${argumentos[i+1]};#tempo de loop passada entre "" apos o -l
+    counter=0;
+    TXtot=();
+    RXtot=();
+    while [[ $loop -eq 1 ]]
+    do
+        TXtot=();
+        RXtot=();
+        for ((i = 0; i < ${#TRate[@]}; i++))
+            do
+                TXtot+=("${TRate[i]}");
+                RXtot+=("${RRate[i]}");
+            done
 
+            if [[ $counter -eq 0  ]] ; then
+                printStats 1 2 3
+                counter+=1;
+                echo $'\n'
+            fi
+
+            gatherData
+            sleep $tempoLoop
+            printStats 1 2 0
+            echo $'\n'
+    done
+}
 
 printStats() {  # Funcao para printar o output desejado do comando.
     if ! [[ $1 -eq 1 ]] ; then # se o argumento 1 for diferente de 1, imprima normalmente os stats
@@ -297,32 +324,8 @@ do
     fi
 
     if [[ ${argumentos[i]} == "-l" ]]; then
-        loop=1; # variavel que controla se o programa sera executado em modo loop 1 - true | 0 - false
-        tempoLoop=${argumentos[i+1]};#tempo de loop passada entre "" apos o -l
-        counter=0;
-        TXtot=();
-        RXtot=();
-        while [[ $loop -eq 1 ]]
-        do
-            TXtot=();
-            RXtot=();
-            for ((i = 0; i < ${#TRate[@]}; i++))
-                do
-                    TXtot+=("${TRate[i]}");
-                    RXtot+=("${RRate[i]}");
-            done
-
-            if [[ $counter -eq 0  ]] ; then
-                printStats 1 2 3
-                counter+=1;
-                echo $'\n'
-            fi
-
-            gatherData
-            sleep $tempoLoop
-            printStats 1 2 0
-            echo $'\n'
-        done
+        loop
+        continue;
     fi
 done
 
