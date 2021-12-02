@@ -166,7 +166,7 @@ do
             keyword=${argumentos[i+1]};#keyword passada entre "" apos o -c
             for ((i=0;i<${#itf_name[@]};i++)) 
                 do
-                    if ! [[ ${itf_name[i]} =~ $keyword ]]; then # se o nome nao corresponder a uma interface, adicione ela ao array com as interfaces a serem deletadas
+                    if ! [[ ${itf_name[i]} =~ ^$keyword$ ]]; then # se o nome nao corresponder a uma interface, adicione ela ao array com as interfaces a serem deletadas
                         itf_to_delete+=("${itf_name[i]}"); #Criando um array com os itens que deseja deletar
                         itf_index+=("$i"); #Salvando os indices de cada interface a ser deletada, para posteriormente deletar dos arrays tx, rx e rates
                     fi
@@ -277,7 +277,9 @@ do
         # fi
         
         # if [[ ${argumentos[i]} == "-v" ]]; then
-        
+            #REVERSE IT BRO!
+
+
         # fi
 
         if [[ ${argumentos[i]} == "-l" ]]; then
