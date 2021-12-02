@@ -1,13 +1,17 @@
 #!/bin/bash
+#----------------------------------------------------
+#                                                   -
+#           Trabalho de Sistemas Operativos         -
+#                      2021/2022                    -
+#                      @Authors:                    -   
+#                     Victor Melo                   -                
+#                         &                         -
+#                   Catarina Marques                -
+#                                                   -
+#----------------------------------------------------
+
 ###    Handling the ARGUMENTS...   ###
 ##  PRECISA-SE DO ARGUMENTO NUMERICO. Apenas um numero como argumento.
-
-#######################################################################    PROCURAR SOBRE GETOPT!!!    ##########################################################3
-# optarg guarda o argumento
-# opt = getopt(argc, argv, "cnt:v:")
-# optind indice dos argumentos
-
-
 echo Argumentos: $@
 re='^[0-9]+([.][0-9]+)?$';
 argumentos=( "$@" );
@@ -22,7 +26,7 @@ then
         do
             if [[ $argumento =~ $re ]] ; then #se algum argumento for um numero continue:
             echo "argument $argumento is a number... CONTINUING";
-            tempo=$argumento; #tempo de execucao do comando = argumento numericoLC_NUMERIC="en_US.UTF-8"
+            tempo=$argumento; #tempo de execucao do comando = argumento numerico
             count_ArgNums+=1;
             else
             echo "error: argument $argumento is NOT a number, at least one number as argument is required." >&2; exit 1
@@ -56,7 +60,7 @@ sleepTime(){
     echo just wake up!
 }
 
-gatherData(){
+gatherData() {  #funcao que armazena os valores do TX, RX, RRATE e TRATE das respectivas interfaces
         ###     Handling the INTERFACES names   ###
     ##  Nomes das Interfaces - guardados em um array: itf_name
     IFS=$'\n' read -r -d '' -a itf_name < <( ifconfig -a | grep ": " | awk '{print $1}' | tr -d : && printf '\0' )
@@ -93,12 +97,9 @@ gatherData(){
 
 }
 
-byteConversor() {
-    # if [[ $byteF -eq 1 ]]; then 
-        
-    # fi
-    if [[ $byteF -eq 2 ]] ; then 
-        for ((i=0;i<$itf_length;i++))
+byteConversor() {   #Funcao para calcular os valores em bytes, kilobytes e megabytes
+    if [[ $1 -eq 2 ]] ; then 
+        for ((i=0;i<${#TRate[@]};i++))
         do
             if ! [[ ${TRate[i]} = 0 ]] ; then
             TRate[i]="$( echo "scale=2; (${TRate[i]} + 1023) / 1024" | bc )"
@@ -106,8 +107,8 @@ byteConversor() {
             fi
         done
     fi
-    if [[ $byteF -eq 3 ]]; then 
-        for ((i=0;i<$itf_length;i++))
+    if [[ $1 -eq 3 ]]; then 
+        for ((i=0;i<${#TRate[@]};i++))
         do
             if ! [[ ${TRate[i]} = 0 ]] ; then
             TRate[i]="$( echo "scale=2; (${TRate[i]} + 1048575) / 1048576" | bc )"
@@ -117,12 +118,19 @@ byteConversor() {
     fi
 }
 
-gatherData
+reverseArray() {
+    # first argument is the array to reverse
+    # second is the output array
+    array=("$1");
+    for (( i=${#array[@]}-1; i>=0; i-- ))
+    do 
+        rev[${#rev[@]}]=${array[i]}
+    done
+}
 
-###     Handling the Outputs    ###
-##  Basic Case Output
 
-printStats() {
+
+printStats() {  # Funcao para printar o output desejado do comando.
     if ! [[ $1 -eq 1 ]] ; then # se o argumento 1 for diferente de 1, imprima normalmente os stats
     printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
         for ((i=0;i<$itf_length;i++))
@@ -145,179 +153,177 @@ printStats() {
     
 }
 
-# printStats
+# printStats #fot test purposes only
 
-###     Other outputs   ###
-##  Based in the given arguments
+###     Other outputs    ###
+gatherData  #armazenando os dados iniciais (necessario armazenar inicialmente para prosseguir com as opcoes de argumentos).
 loop=0; # loop setado para falso, se o programa tiver a opcao l, o loop sera ativo e loop=1.
 for ((i=0;i<$#;i++))
 do
-    if ! [[ ${argumentos[i]} =~ $re ]] ; then #se algum argumento nao for um numero continue:
-        if [[ ${argumentos[i]} == "-c" ]]; then
-            itf_to_delete=(); # array com as interfaces que nao correspondem as que queremos peloa arg -c "itf que queremos"
-            tx_i_to_delete=();
-            tx_f_to_delete=();
-            rx_i_to_delete=();
-            rx_f_to_delete=();
-            trate_to_delete=();
-            rrate_to_delete=();
-            itf_index=();
-            ###     Tratando de excluir as interfaces que nao correspondem a keyword passada apos -c    ###
-            keyword=${argumentos[i+1]};#keyword passada entre "" apos o -c
-            for ((i=0;i<${#itf_name[@]};i++)) 
-                do
-                    if ! [[ ${itf_name[i]} =~ ^$keyword$ ]]; then # se o nome nao corresponder a uma interface, adicione ela ao array com as interfaces a serem deletadas
-                        itf_to_delete+=("${itf_name[i]}"); #Criando um array com os itens que deseja deletar
-                        itf_index+=("$i"); #Salvando os indices de cada interface a ser deletada, para posteriormente deletar dos arrays tx, rx e rates
-                    fi
-            done
-            declare -A delk
-            for itf in "${itf_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
-            for k in "${!itf_name[@]}" ; do
-                    [ "${delk[${itf_name[$k]}]-}" ] && unset 'itf_name[k]'
-            done
-            itf_name=("${itf_name[@]}");
-            
-            ###     Apagando os indices correspondentes as interfaces deletadas dos arrays de TX, RX e Rates      ###
-            for ((i=0;i<$itf_length;i++)) 
-                do
-                    if ! [[ ${itf_index[i]} = ${!TxBytes_inicial[i]} && ${itf_index[i]} = ${!TxBytes_final[i]} && ${itf_index[i]} = ${!RxBytes_inicial[i]} && ${itf_index[i]} = ${!RxBytes_final[i]} ]] ; then
-                        tx_i_to_delete+=("${TxBytes_inicial[i]}");  
-                        tx_f_to_delete+=("${TxBytes_final[i]}");
-                        rx_i_to_delete+=("${RxBytes_inicial[i]}"); 
-                        rx_f_to_delete+=("${RxBytes_final[i]}");
-                        trate_to_delete+=("${TRate[i]}"); 
-                        rrate_to_delete+=("${RRate[i]}");
-                    fi
-            done
-
-            declare -A delk
-            for itf in "${tx_i_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
-            for k in "${!TxBytes_inicial[@]}" ; do
-                    [ "${delk[${TxBytes_inicial[$k]}]-}" ] && unset 'TxBytes_inicial[k]'
-            done
-            TxBytes_inicial=("${TxBytes_inicial[@]}");
-
-            declare -A delk
-            for itf in "${tx_f_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
-            for k in "${!TxBytes_final[@]}" ; do
-                    [ "${delk[${TxBytes_final[$k]}]-}" ] && unset 'TxBytes_final[k]'
-            done
-            TxBytes_final=("${TxBytes_final[@]}");
-
-            declare -A delk
-            for itf in "${rx_i_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
-            for k in "${!RxBytes_inicial[@]}" ; do
-                    [ "${delk[${RxBytes_inicial[$k]}]-}" ] && unset 'RxBytes_inicial[k]'
-            done
-            RxBytes_inicial=("${RxBytes_inicial[@]}");
-
-            declare -A delk
-            for itf in "${rx_f_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
-            for k in "${!RxBytes_final[@]}" ; do
-                    [ "${delk[${RxBytes_final[$k]}]-}" ] && unset 'RxBytes_final[k]'
-            done
-            RxBytes_final=("${RxBytes_final[@]}");
-
-            declare -A delk
-            for itf in "${trate_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
-            for k in "${!TRate[@]}" ; do
-                    [ "${delk[${TRate[$k]}]-}" ] && unset 'TRate[k]'
-            done
-            TRate=("${TRate[@]}");
-
-            declare -A delk
-            for itf in "${rrate_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
-            for k in "${!RRate[@]}" ; do
-                    [ "${delk[${RRate[$k]}]-}" ] && unset 'RRate[k]'
-            done
-            RRate=("${RRate[@]}");
-
-            itf_length=${#itf_name[@]}; # temos que declarar novamente a variavel com o tamanho do array das interfaces, pois este foi alterado (used to do a big messy bug... now fixed!)
-            continue;
-        fi
-
-
-        if [[ ${argumentos[i]} == "-b" ]]; then
-            byteF=1
-            byteConversor
-            continue;
-        fi
-
-        if [[ ${argumentos[i]} == "-k" ]]; then
-            byteF=2
-            byteConversor
-            continue;
-        fi  
-
-        if [[ ${argumentos[i]} == "-m" ]] ; then
-            byteF=3
-            byteConversor
-            continue;
-        fi                  
-
-        # if [[ ${argumentos[i]} == "-p" ]] ; then
+    if [[ ${argumentos[i]} == "-c" ]]; then
+        itf_to_delete=(); # array com as interfaces que nao correspondem as que queremos peloa arg -c "itf que queremos"
+        tx_i_to_delete=();
+        tx_f_to_delete=();
+        rx_i_to_delete=();
+        rx_f_to_delete=();
+        trate_to_delete=();
+        rrate_to_delete=();
+        itf_index=();
+        ###     Tratando de excluir as interfaces que nao correspondem a keyword passada apos -c    ###
+        keyword=${argumentos[i+1]};#keyword passada entre "" apos o -c
+        for ((i=0;i<${#itf_name[@]};i++)) 
+            do
+                if ! [[ ${itf_name[i]} =~ ^$keyword$ ]]; then # se o nome nao corresponder a uma interface, adicione ela ao array com as interfaces a serem deletadas
+                    itf_to_delete+=("${itf_name[i]}"); #Criando um array com os itens que deseja deletar
+                    itf_index+=("$i"); #Salvando os indices de cada interface a ser deletada, para posteriormente deletar dos arrays tx, rx e rates
+                fi
+        done
+        declare -A delk
+        for itf in "${itf_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+        for k in "${!itf_name[@]}" ; do
+                [ "${delk[${itf_name[$k]}]-}" ] && unset 'itf_name[k]'
+        done
+        itf_name=("${itf_name[@]}");
         
-        # fi  
-        
-        # if [[ ${argumentos[i]} == "-t" ]]; then
-        
-        # fi
-        
-        # if [[ ${argumentos[i]} == "-r" ]]; then
-        
-        # fi
-        
-        # if [[ ${argumentos[i]} == "-T" ]]; then
-        
-        # fi
-        
-        # if [[ ${argumentos[i]} == "-R" ]]; then
-        
-        # fi
-        
-        # if [[ ${argumentos[i]} == "-v" ]]; then
-            #REVERSE IT BRO!
+        ###     Apagando os indices correspondentes as interfaces deletadas dos arrays de TX, RX e Rates      ###
+        for ((i=0;i<$itf_length;i++)) 
+            do
+                if ! [[ ${itf_index[i]} = ${!TxBytes_inicial[i]} && ${itf_index[i]} = ${!TxBytes_final[i]} && ${itf_index[i]} = ${!RxBytes_inicial[i]} && ${itf_index[i]} = ${!RxBytes_final[i]} ]] ; then
+                    tx_i_to_delete+=("${TxBytes_inicial[i]}");  
+                    tx_f_to_delete+=("${TxBytes_final[i]}");
+                    rx_i_to_delete+=("${RxBytes_inicial[i]}"); 
+                    rx_f_to_delete+=("${RxBytes_final[i]}");
+                    trate_to_delete+=("${TRate[i]}"); 
+                    rrate_to_delete+=("${RRate[i]}");
+                fi
+        done
 
+        declare -A delk
+        for itf in "${tx_i_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+        for k in "${!TxBytes_inicial[@]}" ; do
+                [ "${delk[${TxBytes_inicial[$k]}]-}" ] && unset 'TxBytes_inicial[k]'
+        done
+        TxBytes_inicial=("${TxBytes_inicial[@]}");
 
-        # fi
+        declare -A delk
+        for itf in "${tx_f_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+        for k in "${!TxBytes_final[@]}" ; do
+                [ "${delk[${TxBytes_final[$k]}]-}" ] && unset 'TxBytes_final[k]'
+        done
+        TxBytes_final=("${TxBytes_final[@]}");
 
-        if [[ ${argumentos[i]} == "-l" ]]; then
-            loop=1; # variavel que controla se o programa sera executado em modo loop 1 - true | 0 - false
-            tempoLoop=${argumentos[i+1]};#tempo de loop passada entre "" apos o -l
-            counter=0;
+        declare -A delk
+        for itf in "${rx_i_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+        for k in "${!RxBytes_inicial[@]}" ; do
+                [ "${delk[${RxBytes_inicial[$k]}]-}" ] && unset 'RxBytes_inicial[k]'
+        done
+        RxBytes_inicial=("${RxBytes_inicial[@]}");
+
+        declare -A delk
+        for itf in "${rx_f_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+        for k in "${!RxBytes_final[@]}" ; do
+                [ "${delk[${RxBytes_final[$k]}]-}" ] && unset 'RxBytes_final[k]'
+        done
+        RxBytes_final=("${RxBytes_final[@]}");
+
+        declare -A delk
+        for itf in "${trate_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+        for k in "${!TRate[@]}" ; do
+                [ "${delk[${TRate[$k]}]-}" ] && unset 'TRate[k]'
+        done
+        TRate=("${TRate[@]}");
+
+        declare -A delk
+        for itf in "${rrate_to_delete[@]}" ; do delk[$itf]=1 ; done #Array com os itens que deseja deletar
+        for k in "${!RRate[@]}" ; do
+                [ "${delk[${RRate[$k]}]-}" ] && unset 'RRate[k]'
+        done
+        RRate=("${RRate[@]}");
+
+        itf_length=${#itf_name[@]}; # temos que declarar novamente a variavel com o tamanho do array das interfaces, pois este foi alterado (used to do a big messy bug... now fixed!)
+        continue;
+    fi
+
+    if [[ ${argumentos[i]} == "-k" ]]; then
+        byteConversor 2
+        continue;
+    fi  
+
+    if [[ ${argumentos[i]} == "-m" ]] ; then
+        byteConversor 3
+        continue;
+    fi                  
+
+    # if [[ ${argumentos[i]} == "-p" ]] ; then
+
+    # fi  
+
+    # if [[ ${argumentos[i]} == "-t" ]]; then
+
+    # fi
+
+    # if [[ ${argumentos[i]} == "-r" ]]; then
+
+    # fi
+
+    # if [[ ${argumentos[i]} == "-T" ]]; then
+
+    # fi
+
+    # if [[ ${argumentos[i]} == "-R" ]]; then
+
+    # fi
+
+    if [[ ${argumentos[i]} == "-v" ]]; then
+        min=0
+        max=$(( ${#itf_name[@]} -1 ))
+
+        while [[ min -lt max ]]
+        do
+            # Swap current first and last elements
+            x="${itf_name[$min]}"
+            itf_name[$min]="${itf_name[$max]}"
+            itf_name[$max]="$x"
+
+            # Move closer
+            (( min++, max-- ))
+        done
+
+        echo "${itf_name[@]}"
+    fi
+
+    if [[ ${argumentos[i]} == "-l" ]]; then
+        loop=1; # variavel que controla se o programa sera executado em modo loop 1 - true | 0 - false
+        tempoLoop=${argumentos[i+1]};#tempo de loop passada entre "" apos o -l
+        counter=0;
+        TXtot=();
+        RXtot=();
+        while [[ $loop -eq 1 ]]
+        do
             TXtot=();
             RXtot=();
-            while [[ $loop -eq 1 ]]
-            do
-                TXtot=();
-                RXtot=();
-                for ((i = 0; i < ${#TRate[@]}; i++))
-                    do
-                        TXtot+=("${TRate[i]}");
-                        RXtot+=("${RRate[i]}");
-                done
-
-                if [[ $counter -eq 0  ]] ; then
-                    printStats 1 2 3
-                    counter+=1;
-                    echo $'\n'
-                fi
-
-                gatherData
-                sleep $tempoLoop
-                printStats 1 2 0
-                echo $'\n'
+            for ((i = 0; i < ${#TRate[@]}; i++))
+                do
+                    TXtot+=("${TRate[i]}");
+                    RXtot+=("${RRate[i]}");
             done
-        fi
+
+            if [[ $counter -eq 0  ]] ; then
+                printStats 1 2 3
+                counter+=1;
+                echo $'\n'
+            fi
+
+            gatherData
+            sleep $tempoLoop
+            printStats 1 2 0
+            echo $'\n'
+        done
     fi
 done
 
-sleepTime
-
 if [[ $loop -ne 1 ]]; then
+    sleepTime
     printStats
 fi
 
-### ERRO NO PRINT, o indices do itf_name array mudou, pore, os indices dos rates nao mudaram...
-# testar com: ./netifstat.sh 10 -c "w"
