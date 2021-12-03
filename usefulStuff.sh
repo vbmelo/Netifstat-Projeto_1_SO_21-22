@@ -97,27 +97,36 @@ byteConversor() {   #Funcao para calcular os valores em bytes, kilobytes e megab
 }
 
 reverseArray() {
-    # first argument is the array to reverse
-    # second is the output array
-    array=("$@");
+    ## NEEDS FIX com -c!
+    mn=$1; # min
+    mx=$(($2)); # max
 
-    min=0
-    max=$(( ${#array[@]} -1 ))
+    #Trocando os nomes das interfaces
+    x=${itf_name[$mn]}
+    itf_name[$mn]=${itf_name[$mx]}
+    itf_name[$mx]=$x
 
-    while [[ min -lt max ]]
-    do
-        # Swap current first and last elements
-        x="${array[$min]}"
-        array[$min]="${array[$max]}"
-        array[$max]="$x"
+    #Trocando os TXs das interfaces
+    x=${TxBytes_final[$mn]}
+    TxBytes_final[$mn]=${TxBytes_final[$mx]}
+    TxBytes_final[$mx]=$x
 
-        # Move closer
-        (( min++, max-- ))
-    done
+    #Trocando os RXs das interfaces
+    x=${RxBytes_final[$mn]}
+    RxBytes_final[$mn]=${RxBytes_final[$mx]}
+    RxBytes_final[$mx]=$x
 
-    echo "${array[@]}"
+    #Trocando os TRates das interfaces
+    x=${TRate[$mn]}
+    TRate[$mn]=${TRate[$mx]}
+    TRate[$mx]=$x
+
+    #Trocando os RRates das interfaces
+    x=${RRate[$mn]}
+    RRate[$mn]=${RRate[$mx]}
+    RRate[$mx]=$x
+    
 }
-
 
 
 printStats() {  # Funcao para printar o output desejado do comando.
@@ -265,35 +274,13 @@ do
     # fi
 
     if [[ ${argumentos[i]} == "-v" ]]; then
-        # min=0
-        # max=$(( ${#itf_name[@]} -1 ))
-
-        # while [[ min -lt max ]]
-        # do
-        #     # Swap current first and last elements
-        #     x="${itf_name[$min]}"
-        #     itf_name[$min]="${itf_name[$max]}"
-        #     itf_name[$max]="$x"
-
-        #     # Move closer
-        #     (( min++, max-- ))
-        # done
-
-        # echo "${itf_name[@]}"
-
-
-        # do
-        #     # Swap current first and last elements
-        #     x="${itf_name[$min]}"
-        #     itf_name[$min]="${itf_name[$max]}"
-        #     itf_name[$max]="$x"
-
-        #     # Move closer
-        #     (( min++, max-- ))
-        # done
-
-        # echo "${itf_name[@]}"
-        reverseArray "${itf_name[@]}"
+        min=0;
+        max=$(( $itf_length -1 ))
+        while [[ min -lt max ]]
+        do
+            reverseArray "$min" "$max";
+            (( min++, max-- ));
+        done
     fi
 
     if [[ ${argumentos[i]} == "-l" ]]; then
