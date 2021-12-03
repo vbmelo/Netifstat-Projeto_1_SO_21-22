@@ -53,7 +53,7 @@ fi
 sleepTime(){
     for ((i = ($tempo), j = 0; i>0, j<$tempo; i--, j++))
         do
-            #sleep 1
+            sleep 1
             echo 'Please wait' $i seconds...
     done
          #If you want to testar, sujiro que comenete esta linha :)
@@ -68,7 +68,7 @@ gatherData() {  #funcao que armazena os valores do TX, RX, RRATE e TRATE das res
 
     IFS=$'\n' read -r -d '' -a TxBytes_inicial < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' )
     IFS=$'\n' read -r -d '' -a RxBytes_inicial < <( ifconfig -a | grep "RX packets " | awk '{print $5}' && printf '\0' )
-
+    sleepTime
     IFS=$'\n' read -r -d '' -a TxBytes_final < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' )
     IFS=$'\n' read -r -d '' -a RxBytes_final < <( ifconfig -a | grep "RX packets " | awk '{print $5}' && printf '\0' )
 
@@ -79,6 +79,7 @@ gatherData() {  #funcao que armazena os valores do TX, RX, RRATE e TRATE das res
     for ((i=0,j=$itf_length;i<j;i++))
     do
         TX=$(( ${TxBytes_final[i]} - ${TxBytes_inicial[i]} ))
+        echo TX: "$TX"
         TRate_value="$( echo "scale=1; $TX / $tempo" | bc )"
         if [[ $TX -eq 0 ]]; then
             TRate_value="$( echo "scale=2; ${TxBytes_final[i]} / $tempo" | bc )"
@@ -106,8 +107,8 @@ byteConversor() {   #Funcao para calcular os valores em bytes, kilobytes e megab
         for ((i=0;i<${#TRate[@]};i++))
         do
             if ! [[ ${TRate[i]} = 0 ]] ; then
-            TX[i]="$( echo "(${TX[i]} + 1023) / 1024" )"
-            RX[i]="$( echo "scale=2; (${RX[i]} + 1023) / 1024")"
+            TxBytes_final[i]="$( echo "(${TxBytes_final[i]} + 1023) / 1024" )"
+            RxBytes_final[i]="$( echo "(${RxBytes_final[i]} + 1023) / 1024" )"
             TRate[i]="$( echo "scale=2; (${TRate[i]} + 1023) / 1024" | bc )"
             RRate[i]="$( echo "scale=2; (${RRate[i]} + 1023) / 1024" | bc )"
             fi
@@ -330,7 +331,6 @@ do
 done
 
 if [[ $loop -ne 1 ]]; then
-    sleepTime
+    # sleepTime
     printStats
 fi
-
