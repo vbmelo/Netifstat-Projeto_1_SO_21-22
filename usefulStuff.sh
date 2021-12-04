@@ -19,14 +19,13 @@ arguments=( "$@" );
 count_ArgNums=0;
 
 sleeping_time=${!#};    # Number of seconds entered by user
-
 # Check if the option is valid. If not, do not proceed 
 if [[ $sleeping_time != ?(-)+([0-9]) ]] || [ $sleeping_time -eq 0 ]  ; then
     echo "Error: Please enter the number of seconds."
     exit
 fi
 
-sleepTime(){
+sleepTime() {
     echo "Please wait $sleeping_time seconds"
     for ((i = ($sleeping_time), j = 0; i>0, j<$sleeping_time; i--, j++))
         do
@@ -103,14 +102,14 @@ reverseArray() {
     itf_name[$mx]=$x
 
     # Switching TXs
-    x=${TxBytes_end[$mn]}
-    TxBytes_end[$mn]=${TxBytes_end[$mx]}
-    TxBytes_end[$mx]=$x
+    x=${TX[$mn]}
+    TX[$mn]=${TX[$mx]}
+    TX[$mx]=$x
 
     # Switching RXs
-    x=${RxBytes_end[$mn]}
-    RxBytes_end[$mn]=${RxBytes_end[$mx]}
-    RxBytes_end[$mx]=$x
+    x=${RX[$mn]}
+    RX[$mn]=${RX[$mx]}
+    RX[$mx]=$x
 
     # Switching TRATES
     x=${TRate[$mn]}
@@ -125,6 +124,7 @@ reverseArray() {
 }
 
 loop() {
+    i=$1
     loop=1; # loop=1 --> the program will run in loop mode
     loop_time=${argumentos[i+1]}; # time between cycles 
     counter=0;
@@ -177,7 +177,7 @@ printStats() {
 
 ###     Other outputs    ###
 
-gatherData   # Initial data storage
+gatherData  # Initial data storage
 loop=0;      # Loop set to false. If option -l is active then loop=1
 
 for ((i=0;i<$#;i++))
@@ -213,43 +213,27 @@ do
         # Delete indexes TX, RX and Rates   
         for ((i=0;i<$itf_length;i++)) 
             do
-                if ! [[ ${itf_index[i]} = ${!TxBytes_start[i]} && ${itf_index[i]} = ${!TxBytes_end[i]} && ${itf_index[i]} = ${!RxBytes_start[i]} && ${itf_index[i]} = ${!RxBytes_end[i]} ]] ; then
-                    tx_i_to_delete+=("${TxBytes_start[i]}");  
-                    tx_f_to_delete+=("${TxBytes_end[i]}");
-                    rx_i_to_delete+=("${RxBytes_start[i]}"); 
-                    rx_f_to_delete+=("${RxBytes_end[i]}");
+                if ! [[ ${itf_index[i]} = ${!TxBytes_start[i]} && ${itf_index[i]} = ${!TX[i]} && ${itf_index[i]} = ${!RxBytes_start[i]} && ${itf_index[i]} = ${!RX[i]} ]] ; then
+                    tx_f_to_delete+=("${TX[i]}");
+                    rx_f_to_delete+=("${RX[i]}");
                     trate_to_delete+=("${TRate[i]}"); 
                     rrate_to_delete+=("${RRate[i]}");
                 fi
         done
 
         declare -A delk
-        for itf in "${tx_i_to_delete[@]}" ; do delk[$itf]=1 ; done 
-        for k in "${!TxBytes_start[@]}" ; do
-                [ "${delk[${TxBytes_start[$k]}]-}" ] && unset 'TxBytes_start[k]'
-        done
-        TxBytes_start=("${TxBytes_start[@]}");
-
-        declare -A delk
         for itf in "${tx_f_to_delete[@]}" ; do delk[$itf]=1 ; done 
-        for k in "${!TxBytes_end[@]}" ; do
-                [ "${delk[${TxBytes_end[$k]}]-}" ] && unset 'TxBytes_end[k]'
+        for k in "${!TX[@]}" ; do
+                [ "${delk[${TX[$k]}]-}" ] && unset 'TX[k]'
         done
-        TxBytes_end=("${TxBytes_end[@]}");
-
-        declare -A delk
-        for itf in "${rx_i_to_delete[@]}" ; do delk[$itf]=1 ; done 
-        for k in "${!RxBytes_start[@]}" ; do
-                [ "${delk[${RxBytes_start[$k]}]-}" ] && unset 'RxBytes_start[k]'
-        done
-        RxBytes_start=("${RxBytes_start[@]}");
+        TX=("${TX[@]}");
 
         declare -A delk
         for itf in "${rx_f_to_delete[@]}" ; do delk[$itf]=1 ; done 
-        for k in "${!RxBytes_end[@]}" ; do
-                [ "${delk[${RxBytes_end[$k]}]-}" ] && unset 'RxBytes_end[k]'
+        for k in "${!RX[@]}" ; do
+                [ "${delk[${RX[$k]}]-}" ] && unset 'RX[k]'
         done
-        RxBytes_end=("${RxBytes_end[@]}");
+        RX=("${RX[@]}");
 
         declare -A delk
         for itf in "${trate_to_delete[@]}" ; do delk[$itf]=1 ; done 
@@ -306,17 +290,21 @@ do
     # fi
 
     if [[ ${arguments[i]} == "-v" ]]; then
-        min=0;
-        max=$(( $itf_length -1 ))
-        while [[ min -lt max ]]
-        do
-            reverseArray "$min" "$max";
-            (( min++, max-- ));
-        done
+        if [[ "$itf_length" -gt 1 ]] ; then
+            min=0;
+            max=$(( $itf_length -1 ))
+            while [[ min -lt max ]]
+            do
+                reverseArray "$min" "$max";
+                (( min++, max-- ));
+            done
+        fi
+
+        
     fi
 
     if [[ ${argumentos[i]} == "-l" ]]; then
-        loop
+        loop i
         continue;
     fi
 
