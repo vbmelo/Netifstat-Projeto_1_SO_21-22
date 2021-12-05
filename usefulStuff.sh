@@ -69,28 +69,6 @@ gatherData() {
     done
 }
 
-# Function that converts the values to kilobytes and megabytes 
-# byteConversor() {  
-#     if [[ $1 -eq 2 ]] ; then 
-#         for ((i=0;i<${#TRate[@]};i++))
-#         do
-#             if ! [[ ${TRate[i]} = 0 ]] ; then
-#             TRate[$i]=$(bc <<<"scale=1; ${TRate[$i]} / 1024");
-#             RRate[$i]=$(bc <<<"scale=1; ${RRate[$i]} / 1024");
-#             fi
-#         done
-#     fi
-#     if [[ $1 -eq 3 ]]; then 
-#         for ((i=0;i<${#TRate[@]};i++))
-#         do
-#             if ! [[ ${TRate[i]} = 0 ]] ; then
-#             TRate[$i]="$( echo "scale=1; ${TRate[$i]} / 1048576" | bc )"
-#             RRate[$i]="$( echo "scale=1; ${RRate[$i]} / 1048576" | bc )"
-#             fi
-#         done
-#     fi
-# }
-
 # Reversing function 
 switchArrayItems() {
     ## NEEDS FIX com -c!
@@ -219,6 +197,25 @@ regexSearch() {
         fi
 }
 
+sortItOut() {
+    arr=("$@"); # 1 for -t | 2 for -r | 3 for -T | 4 for -R
+
+    for ((i = 0; i<$itf_length; i++))
+    do
+        for((j = 0; j<$itf_length-i-1; j++))
+        do
+            if [ ${arr[j]} -gt ${arr[$((j+1))]} ]
+            then
+                # swap
+                temp=${arr[j]}
+                arr[$j]=${arr[$((j+1))]}  
+                arr[$((j+1))]=$temp
+            fi
+        done
+    done
+}
+
+
 loop() {
     i=$1
     loop=1; # loop=1 --> the program will run in loop mode
@@ -276,6 +273,7 @@ printStats() {
 # gatherData  # Initial data storage
 
 loop=0;     # Loop set to false. If option -l is active then loop=1
+sortClamp=0; # Sort clamp is set to 0, only one sorting method allowed.
 for ((i=0;i<$#;i++))
 do
     if [[ ${arguments[i]} == "-c" ]]; then
@@ -311,24 +309,57 @@ do
         continue;
     fi  
 
-    # if [[ ${arguments[i]} == "-t" ]]; then
-        # op_t=1;
-    # fi
+    if [[ ${arguments[i]} == "-t" ]]; then
+            if [[ $sortClamp -gt 1 ]] ; then
+            echo "error: only one sorting argument is valid."
+            exit
+        fi
+        op_t=1;
+        sortGuide=("${TX[@]}"); #sortItOut by t's
+        sortClamp=$(($sortClamp + 1)); #only allow's one sort argument.
+        continue;
+    fi
 
-    # if [[ ${arguments[i]} == "-r" ]]; then
-        # op_r=1;
-    # fi
+    if [[ ${arguments[i]} == "-r" ]]; then
+            if [[ $sortClamp -gt 1 ]] ; then
+            echo "error: only one sorting argument is valid."
+            exit
+        fi
+        op_r=1;
+        sortGuide=("${RX[@]}");#sortItOut by r's
+        sortClamp=$(($sortClamp + 1)); #only allow's one sort argument.
+        continue;
+    fi
 
-    # if [[ ${arguments[i]} == "-T" ]]; then
-        # op_T=1;
-    # fi
+    if [[ ${arguments[i]} == "-T" ]]; then
+            if [[ $sortClamp -gt 1 ]] ; then
+            echo "error: only one sorting argument is valid."
+            exit
+        fi
+        op_T=1;
+        sortGuide=("${TRate[@]}"); #sortItOut by T's
+        sortClamp=$(($sortClamp + 1)); #only allow's one sort argument.
+        continue;
+    fi
 
-    # if [[ ${arguments[i]} == "-R" ]]; then
-        # op_R=1;
-    # fi
+    if [[ ${arguments[i]} == "-R" ]]; then
+            if [[ $sortClamp -gt 1 ]] ; then
+            echo "error: only one sorting argument is valid."
+            exit
+        fi
+        op_R=1;
+        sortGuide=("${RRate[@]}"); #sortItOut by R's
+        sortClamp=$(($sortClamp + 1)); #only allow's one sort argument.
+        continue;
+    fi
 
     if [[ ${arguments[i]} == "-v" ]]; then
+            if [[ $sortClamp -gt 1 ]] ; then
+            echo "error: only one sorting argument is valid."
+            exit
+        fi
         op_v=1;
+        sortClamp=$(($sortClamp + 1)); #only allow's one sort argument.
         continue;
     fi
 
@@ -338,7 +369,6 @@ do
         loopClamp=0;
         continue;
     fi
-
 done
 # loopClamp?
 if [[ $loop -ne 1 ]]; then
@@ -396,6 +426,9 @@ if [[ $loop -ne 1 ]]; then
         regexSearch $idx
     fi
 
+    if [[ op_t -eq 1 || op_r -eq 1 || op_T -eq 1 || op_R -eq 1 ]]; then
+        sortItOut $sortGuide
+    fi
 
 
     printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
