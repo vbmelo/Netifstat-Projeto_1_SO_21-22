@@ -62,20 +62,17 @@ switchArrayItems() {
     RRate[$mn]=${RRate[$mx]}
     RRate[$mx]=$x
 
-    if [[ $loop -eq 1 ]] ;then
-        # Switching TRATES Total
-        x=${TXtot[$mn]}
-        TXtot[$mn]=${TXtot[$mx]}
-        TXtot[$mx]=$x
-         # Switching RRATES Total
-        x=${RXtot[$mn]}
-        RXtot[$mn]=${RXtot[$mx]}
-        RXtot[$mx]=$x
-    fi
+    # Switching TRATES Total
+    x=${TXtot[$mn]}
+    TXtot[$mn]=${TXtot[$mx]}
+    TXtot[$mx]=$x
+        # Switching RRATES Total
+    x=${RXtot[$mn]}
+    RXtot[$mn]=${RXtot[$mx]}
+    RXtot[$mx]=$x
 }
 
 reverse() {
-    arr=("$@");
     if [[ "$itf_length" -gt 1 ]] ; then
         min=0;
         max=$(( $itf_length - 1 ))
@@ -88,7 +85,7 @@ reverse() {
 }
 
 regexSearch() {
-        i=$1;
+        
         itf_to_delete=(); 
         tx_f_to_delete=();
         rx_f_to_delete=();
@@ -174,7 +171,6 @@ sortItOut() {
             fi
         done
     done
-    
 }
 
 ###     Arguments    ##
@@ -185,7 +181,7 @@ do
     if [[ ${arguments[i]} == "-c" ]]; then
         op_c=1;
         keyword=${arguments[i+1]};
-        idx=$1;
+        idx=0;
         continue;
     fi
 
@@ -270,15 +266,17 @@ do
 
     if [[ ${arguments[i]} == "-l" ]]; then
         loopClamp=0;
-        loop=1;     
+        loop=1;
         continue;
     fi
 
 done
-
-hasSlept=0
+TXtot=();
+RXtot=();
+hasSlept=0;
+zeroes=1;
+numbTimes=0;
 while [[ $loopClamp -eq 0 ]]; do
-    
     # Interfaces names - stored in array: itf_name
     IFS=$'\n' read -r -d '' -a itf_name < <( ifconfig -a | grep ": " | awk '{print $1}' | tr -d : && printf '\0' )
     itf_length=${#itf_name[@]} # Number of interfaces
@@ -286,7 +284,7 @@ while [[ $loopClamp -eq 0 ]]; do
         itf_length=$maxInterfaces;
     fi
 
-    IFS=$'\n' read -r -d '' -a TxBytes_start < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' ) #
+    IFS=$'\n' read -r -d '' -a TxBytes_start < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' ) 
     IFS=$'\n' read -r -d '' -a RxBytes_start < <( ifconfig -a | grep "RX packets " | awk '{print $5}' && printf '\0' )
 
     if [[ hasSlept -ne 1 ]] ; then
@@ -300,13 +298,11 @@ while [[ $loopClamp -eq 0 ]]; do
     RX=();     # RX array
     TRate=();   # TRATE array
     RRate=();   # RRATE array
-    TXtot=();
-    RXtot=();
 
     for ((i=0;i<$itf_length;i++))   # For each interface calculate TX, RX, TRATE, RRATE
     do
-        TX_subtraction=($(( ${TxBytes_end[i]} - ${TxBytes_start[i]} )))
-        RX_subtraction=($(( ${RxBytes_end[i]} - ${RxBytes_start[i]} )))
+        TX_subtraction=($(( ${TxBytes_end[i]} - ${TxBytes_start[i]} )));
+        RX_subtraction=($(( ${RxBytes_end[i]} - ${RxBytes_start[i]} )));
         if [[ $byteConversor == 2 ]] ; then
             TX[$i]=$(bc <<<"scale=0; $TX_subtraction / 1024");
             RX[$i]=$(bc <<<"scale=0; $RX_subtraction / 1024");
@@ -323,44 +319,52 @@ while [[ $loopClamp -eq 0 ]]; do
 
         RRate_value="$( echo "scale=1; ${RX[$i]} / $sleeping_time" | bc )"
         RRate+=("$RRate_value");
-        
+
+        if [[ $loop -eq 1 ]]; then
+            if [[ $zeroes -eq 1 ]]; then
+                RXtot[$i]=0;
+                TXtot[$i]=0;
+            fi
+            var1=${RXtot[$i]};
+            var2=${RX[$i]};
+            RXtot[$i]=$(bc <<< "scale=1;$var1+$var2")
+            var1=${TXtot[$i]};
+            var2=${TX[$i]};
+            TXtot[$i]=$(bc <<< "scale=1;$var1+$var2")
+        fi
     done
 
-    for ((i = 0; i < $itf_length; i++))
-        do
-            TXtot+=("${TRate[i]}");
-            RXtot+=("${RRate[i]}");
-    done
-
-    if [[ op_v -eq 1 ]]; then
+    if [[ $op_v -eq 1 ]]; then
         reverse
     fi
 
-    if [[ op_c -eq 1 ]]; then
-        regexSearch $idx
+    if [[ $op_c -eq 1 ]]; then
+        regexSearch
     fi
 
-    if [[ op_t -eq 1 || op_r -eq 1 || op_T -eq 1 || op_R -eq 1 ]]; then
+    if [[ $op_t -eq 1 || $op_r -eq 1 || $op_T -eq 1 || $op_R -eq 1 ]]; then
         sortItOut $sortGuide
+        if [[ $op_t -eq 1 ]]; then
+            reverse
+        fi
     fi
 
     if [[ $loop -eq 1 ]]; then
-        printf "%-15s %15s %15s %15s %15s %20s %20s \n" "NETIF" "TX" "RX" "TRATE" "RRATE" "TXTOT" "RXTOT";
+        printf "%-10s %10s %10s %10s %10s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE" "TXTOT" "RXTOT";
         for ((i=0;i<$itf_length;i++))
             do
-                LC_NUMERIC="en_US.UTF-8" printf "%-15s %15.0f %15.0f %15.1f %15.1f %20.1f %20.1f \n" ${itf_name[i]} ${TxBytes_final[i]} ${RxBytes_final[i]} ${TRate[i]} ${RRate[i]} ${TXtot[i]}  ${RXtot[i]}
+                LC_NUMERIC="en_US.UTF-8" printf "%-10s %10.0f %10.0f %10.1f %10.1f %15.1f %15.1f \n" ${itf_name[i]} ${TX[i]} ${RX[i]} ${TRate[i]} ${RRate[i]} ${TXtot[i]}  ${RXtot[i]}
             done
-        printf "\n"
+        printf $'\n'
         numbTimes+=1
         sleep $sleeping_time
     else
-        printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
+        printf "%-10s %10s %10s %10s %10s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
         for ((i=0;i<$itf_length;i++))
         do
-            LC_NUMERIC="en_US.UTF-8" printf "%-15s %15.0f %15.0f %15.1f %15.1f \n" ${itf_name[i]} ${TX[i]} ${RX[i]} ${TRate[i]} ${RRate[i]}
+            LC_NUMERIC="en_US.UTF-8" printf "%-10s %10.0f %10.0f %10.1f %10.1f \n" ${itf_name[i]} ${TX[i]} ${RX[i]} ${TRate[i]} ${RRate[i]}
         done
-        printf $'\n'
-        echo "saindo do loop" $loopClamp
         break
     fi
+    zeroes=0;
 done
