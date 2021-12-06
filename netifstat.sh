@@ -11,22 +11,18 @@
 #                                                   -
 #----------------------------------------------------
 
-
 #  Mandatory numeric argument: number of seconds
 echo Arguments: $@
-re='^[0-9]+([.][0-9]+)?$';
 arguments=( "$@" );
-count_ArgNums=0;
 loop=0;
-
 sleeping_time=${!#};    # Number of seconds entered by user
-
 # Check if the option is valid. If not, do not proceed 
 if [[ $sleeping_time != ?(-)+([0-9]) ]] || [ $sleeping_time -eq 0 ]  ; then
     echo "Error: Please enter the number of seconds."
     exit
 fi
 
+###     Functions   ###
 sleepTime() {
     echo "Please wait $sleeping_time seconds"
     for ((i = ($sleeping_time), j = 0; i>0, j<$sleeping_time; i--, j++))
@@ -37,43 +33,7 @@ sleepTime() {
     hasSlept=1;
 }
 
-# TX, RX, TRATE, RRATE 
-gatherData() { 
-
-    # Interfaces names - stored in array: itf_name
-    IFS=$'\n' read -r -d '' -a itf_name < <( ifconfig -a | grep ": " | awk '{print $1}' | tr -d : && printf '\0' )
-    itf_length=${#itf_name[@]} # Number of interfaces
-
-    IFS=$'\n' read -r -d '' -a TxBytes_start < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' ) #
-    IFS=$'\n' read -r -d '' -a RxBytes_start < <( ifconfig -a | grep "RX packets " | awk '{print $5}' && printf '\0' )
-    sleep $sleeping_time
-    IFS=$'\n' read -r -d '' -a TxBytes_end < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' )
-    IFS=$'\n' read -r -d '' -a RxBytes_end < <( ifconfig -a | grep "RX packets " | awk '{print $5}' && printf '\0' )
-
-    TX=()      # TX array
-    RX=()      # RX array
-    TRate=()   # TRATE array
-    RRate=()   # RRATE array
-
-    for ((i=0,j=$itf_length;i<j;i++))   # For each interface calculate TX, RX, TRATE, RRATE
-    do
-        TX_subtraction=($(( ${TxBytes_end[i]} - ${TxBytes_start[i]} )))
-        TX[$i]=$(bc <<<"scale=0; $TX_subtraction");
-
-        RX_subtraction=($(( ${RxBytes_end[i]} - ${RxBytes_start[i]} )))
-        RX[$i]=$(bc <<<"scale=0; $RX_subtraction");
-
-        TRate_value="$( echo "scale=1; ${TX[$i]} / $sleeping_time" | bc )"
-        TRate+=("$TRate_value");
-
-        RRate_value="$( echo "scale=1; ${RX[$i]} / $sleeping_time" | bc )"
-        RRate+=("$RRate_value");
-    done
-}
-
-# Reversing function 
 switchArrayItems() {
-    ## NEEDS FIX com -c!
     mn=$1; # min
     mx=$(($2)); # max
 
@@ -103,18 +63,19 @@ switchArrayItems() {
     RRate[$mx]=$x
 
     if [[ $loop -eq 1 ]] ;then
+        # Switching TRATES Total
         x=${TXtot[$mn]}
         TXtot[$mn]=${TXtot[$mx]}
         TXtot[$mx]=$x
-
+         # Switching RRATES Total
         x=${RXtot[$mn]}
         RXtot[$mn]=${RXtot[$mx]}
         RXtot[$mx]=$x
     fi
-
 }
 
 reverse() {
+    arr=("$@");
     if [[ "$itf_length" -gt 1 ]] ; then
         min=0;
         max=$(( $itf_length - 1 ))
@@ -125,6 +86,7 @@ reverse() {
         done
     fi
 }
+
 regexSearch() {
         i=$1;
         itf_to_delete=(); 
@@ -134,9 +96,7 @@ regexSearch() {
         rrate_to_delete=();
         itf_index=();
         itf_length_old=$itf_length;
-
         # Exclude interfaces that not match the passed keyword in -c  
-
                  # entered keyword "" after -c
         for ((i=0;i<${#itf_name[@]};i++)) 
             do
@@ -200,8 +160,7 @@ regexSearch() {
 }
 
 sortItOut() {
-    arr=("$@"); # 1 for -t | 2 for -r | 3 for -T | 4 for -R
-
+    arr=("$@");
     for ((i = 0; i<$itf_length; i++))
     do
         for((j = 0; j<$itf_length-i-1; j++))
@@ -215,71 +174,16 @@ sortItOut() {
             fi
         done
     done
+    
 }
 
-
-looping() {
-    loop=1; # variavel que controla se o programa sera executado em modo loop 1 - true | 0 - false
-    #tempoLoop=${argumentos[i+1]};#tempo de loop passada entre "" apos o -l
-    counter=0;
-    printStats 1
-    while [[ $loop -eq 1 ]]
-    do
-        TXtot=();
-        RXtot=();
-        for ((i = 0; i < ${#TRate[@]}; i++))
-            do
-                TXtot+=("${TRate[i]}");
-                RXtot+=("${RRate[i]}");
-            done
-
-            if [[ $counter -eq 0  ]] ; then
-                printStats 1 2 3
-                counter+=1;
-                echo $'\n'
-            fi
-
-            gatherData
-            sleep $sleeping_time
-            printStats 1 2 0
-            echo $'\n'
-    done
-}
-
-# Function that prints the output
-printStats() { 
-    if ! [[ $1 -eq 1 ]] ; then # If arg1 equals to '1': standard print 
-    printf "%-15s %15s %15s %15s %15s \n" "NETIF" "TX" "RX" "TRATE" "RRATE";
-        for ((i=0;i<$itf_length;i++))
-        do
-            LC_NUMERIC="en_US.UTF-8" printf "%-15s %15.0f %15.0f %15.1f %15.1f \n" ${itf_name[i]} ${TX[i]} ${RX[i]} ${TRate[i]} ${RRate[i]}
-        done
-    fi
-
-    if [[ $2 -eq 2 ]] ; then        # If arg2 equals to '2': loop print 
-        #if [[ $3 -eq 3 ]] ; then    # If arg3 equals to '3': header print 
-        printf "%-15s %15s %15s %15s %15s %20s %20s \n" "NETIF" "TX" "RX" "TRATE" "RRATE" "TXTOT" "RXTOT";
-       # fi
-
-        for ((i=0; i<$itf_length; i++))
-        do
-            LC_NUMERIC="en_US.UTF-8" printf "%-15s %15.0f %15.0f %15.2f %15.1f %20.1f %20.1f \n" ${itf_name[i]} ${TX[i]} ${RX[i]} ${TRate[i]} ${RRate[i]} ${TXtot[i]}  ${RXtot[i]}
-        done
-    fi
-}
-
-###     Other outputs    ###
-
-# gatherData  # Initial data storage
-
-sortClamp=0; # Sort clamp is set to 0, only one sorting method allowed.
-op_l=0;
-loopClamp=0;
+###     Arguments    ##
+sortClamp=0;    #   Sort clamp is set to 0, only one sorting method allowed.
+loopClamp=0;    #   Loop clamp is default set to 0;
 for ((i=0;i<$#;i++))
 do
     if [[ ${arguments[i]} == "-c" ]]; then
         op_c=1;
-        echo "c"
         keyword=${arguments[i+1]};
         idx=$1;
         continue;
@@ -307,7 +211,6 @@ do
             echo "-p needs a numeric argument after it."
             exit
         fi
-
         continue;
     fi  
 
@@ -366,19 +269,16 @@ do
     fi
 
     if [[ ${arguments[i]} == "-l" ]]; then
-        op_l=1;
         loopClamp=0;
-        loop=1;
-        # looping        
+        loop=1;     
         continue;
     fi
 
 done
-echo "ATENCAO el loop tiene valor de la caralha de: " "$op_l"
 
+hasSlept=0
 while [[ $loopClamp -eq 0 ]]; do
-    hasSlept=0
-
+    
     # Interfaces names - stored in array: itf_name
     IFS=$'\n' read -r -d '' -a itf_name < <( ifconfig -a | grep ": " | awk '{print $1}' | tr -d : && printf '\0' )
     itf_length=${#itf_name[@]} # Number of interfaces
@@ -396,10 +296,12 @@ while [[ $loopClamp -eq 0 ]]; do
     IFS=$'\n' read -r -d '' -a TxBytes_end < <( ifconfig -a | grep "TX packets " | awk '{print $5}' && printf '\0' )
     IFS=$'\n' read -r -d '' -a RxBytes_end < <( ifconfig -a | grep "RX packets " | awk '{print $5}' && printf '\0' )
 
-    TX=()      # TX array
-    RX=()      # RX array
-    TRate=()   # TRATE array
-    RRate=()   # RRATE array
+    TX=();     # TX array
+    RX=();     # RX array
+    TRate=();   # TRATE array
+    RRate=();   # RRATE array
+    TXtot=();
+    RXtot=();
 
     for ((i=0;i<$itf_length;i++))   # For each interface calculate TX, RX, TRATE, RRATE
     do
@@ -421,6 +323,13 @@ while [[ $loopClamp -eq 0 ]]; do
 
         RRate_value="$( echo "scale=1; ${RX[$i]} / $sleeping_time" | bc )"
         RRate+=("$RRate_value");
+        
+    done
+
+    for ((i = 0; i < $itf_length; i++))
+        do
+            TXtot+=("${TRate[i]}");
+            RXtot+=("${RRate[i]}");
     done
 
     if [[ op_v -eq 1 ]]; then
@@ -436,14 +345,6 @@ while [[ $loopClamp -eq 0 ]]; do
     fi
 
     if [[ $loop -eq 1 ]]; then
-        echo "loop clamp tem o valor de: " $loopClamp
-        echo 'looping'
-        for ((i = 0; i < ${#TRate[@]}; i++))
-        do
-            TXtot+=("${TRate[i]}");
-            RXtot+=("${RRate[i]}");
-        done
-
         printf "%-15s %15s %15s %15s %15s %20s %20s \n" "NETIF" "TX" "RX" "TRATE" "RRATE" "TXTOT" "RXTOT";
         for ((i=0;i<$itf_length;i++))
             do
