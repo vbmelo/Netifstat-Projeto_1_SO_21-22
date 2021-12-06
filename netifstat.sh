@@ -344,9 +344,10 @@ while [[ $loopClamp -eq 0 ]]; do
 
     if [[ $op_t -eq 1 || $op_r -eq 1 || $op_T -eq 1 || $op_R -eq 1 ]]; then
         sortItOut $sortGuide
-        if [[ $op_t -eq 1 ]]; then
-            reverse
-        fi
+        # if [[ $op_t -eq 1 ]]; then
+        #     reverse
+        # fi
+        reverse
     fi
 
     if [[ $loop -eq 1 ]]; then
